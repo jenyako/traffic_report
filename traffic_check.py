@@ -104,7 +104,7 @@ def main():
     tables_list_input = st.sidebar.text_input("Tables List (comma-separated)", "RaceTrack0000001, FreeBet000000001")
     tables_list = [item.strip() for item in tables_list_input.split(',')] if tables_list_input else []
     evosession = st.sidebar.text_input("EVOSESSIONID", "")
-    st.write('Maximum reporting period is 30 days")
+    st.write("Maximum reporting period is 30 days")
     start_date = st.sidebar.date_input("Start Date", value="today")
     end_date = st.sidebar.date_input("End Date", value="today")
     settings_list_input = st.sidebar.text_input("Settings List (comma-separated)", "display, siteAssignedTable, siteBlockedTable")
