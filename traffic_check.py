@@ -113,7 +113,7 @@ def main():
     st.sidebar.divider()
     settings_list_input = st.sidebar.text_input("Settings List (comma-separated)", "display, siteAssignedTable, siteBlockedTable")
     settings_list = [item.strip() for item in settings_list_input.split(',')] if settings_list_input else []
-    review_v_tables = st.sidebar.checkbox("Review Virtual Tables Setting", value=False")
+    review_v_tables = st.sidebar.checkbox("Review Virtual Tables Setting", value=False)
 
     start_date = start_date.strftime('%Y-%m-%d')
     end_date = end_date.strftime('%Y-%m-%d')
