@@ -13,7 +13,9 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list)
     }
 
     casinos = df_casinos['casino_id'].to_list()
-    df_assigned = pd.DataFrame(columns=(['casino_id', 'table_id', 'game_type']+settings_list+['number_of_virtual_tables', 'virtual_tables_settings']))
+    df_assigned = pd.DataFrame(columns=(['casino_id', 'table_id', 'game_type']+settings_list+['number_of_virtual_tables']))
+    if review_v_tables:
+        df_assigned += 'virtual_tables_settings'
     
     with st.status(label="Reading Casinos List", state="running") as status:
         status.update(label="Receiving Tables Assignment Status", state="running")
@@ -42,17 +44,17 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list)
                     for setting in settings_list:
                         if setting in data_table['config']:
                             new_row[setting] = data_table['config'][setting]
-                    
-                    if len(i['virtualTables'])>0:
-                        v_tables_settings = ''
-                        for j in i['virtualTables']:
-                            v_tables_settings += j['id']+':\n'
-                            for setting in settings_list:
-                                if setting in j['config']:
-                                    value = j['config'][setting]
-                                    if len(value)>0:
-                                        v_tables_settings += f'{setting}={value}'+'\n'
-                        new_row['virtual_tables_settings'] = v_tables_settings.strip().strip(':')
+                    if review_v_tables:
+                        if len(i['virtualTables'])>0:
+                            v_tables_settings = ''
+                            for j in i['virtualTables']:
+                                v_tables_settings += j['id']+':\n'
+                                for setting in settings_list:
+                                    if setting in j['config']:
+                                        value = j['config'][setting]
+                                        if len(value)>0:
+                                            v_tables_settings += f'{setting}={value}'+'\n'
+                            new_row['virtual_tables_settings'] = v_tables_settings.strip().strip(':')
                         
                     df_assigned = pd.concat([df_assigned, pd.DataFrame([new_row])], ignore_index=True)
 
@@ -104,12 +106,14 @@ def main():
     tables_list_input = st.sidebar.text_input("Tables List (comma-separated)", "RaceTrack0000001, FreeBet000000001")
     tables_list = [item.strip() for item in tables_list_input.split(',')] if tables_list_input else []
     evosession = st.sidebar.text_input("EVOSESSIONID", "")
-    st.sidebar.write("Maximum reporting period is 30 days")
+    st.sidebar.divider()
     start_date = st.sidebar.date_input("Start Date", value="today")
     end_date = st.sidebar.date_input("End Date", value="today")
+    st.sidebar.write("Maximum reporting period is 30 days")
+    st.sidebar.divider()
     settings_list_input = st.sidebar.text_input("Settings List (comma-separated)", "display, siteAssignedTable, siteBlockedTable")
     settings_list = [item.strip() for item in settings_list_input.split(',')] if settings_list_input else []
-
+    review_v_tables = st.sidebar.checkbox("Review Virtual Tables Setting", value=False")
 
     start_date = start_date.strftime('%Y-%m-%d')
     end_date = end_date.strftime('%Y-%m-%d')
