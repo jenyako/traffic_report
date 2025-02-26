@@ -13,7 +13,10 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list,
     }
 
     casinos = df_casinos['casino_id'].to_list()
-    df_assigned = pd.DataFrame(columns=(['casino_id', 'table_id', 'game_type']+settings_list+['number_of_virtual_tables']))
+    df_assigned = pd.DataFrame(columns=(['casino_id', 'table_id', 'game_type']))
+    if len(settings_list)>0:
+        df_assigned += settings_list
+    df_assigned += 'number_of_virtual_tables'
     if review_v_tables:
         df_assigned += 'virtual_tables_settings'
     
@@ -41,20 +44,21 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list,
 
                     new_row = {'casino_id': casino_id, 'table_id': table_id, 'game_type': i['gameType'], 'number_of_virtual_tables': len(i['virtualTables'])}
                     
-                    for setting in settings_list:
-                        if setting in data_table['config']:
-                            new_row[setting] = data_table['config'][setting]
-                    if review_v_tables:
-                        if len(i['virtualTables'])>0:
-                            v_tables_settings = ''
-                            for j in i['virtualTables']:
-                                v_tables_settings += j['id']+':\n'
-                                for setting in settings_list:
-                                    if setting in j['config']:
-                                        value = j['config'][setting]
-                                        if len(value)>0:
-                                            v_tables_settings += f'{setting}={value}'+'\n'
-                            new_row['virtual_tables_settings'] = v_tables_settings.strip().strip(':')
+                    if len(settings_list)>0:
+                        for setting in settings_list:
+                            if setting in data_table['config']:
+                                new_row[setting] = data_table['config'][setting]
+                        if review_v_tables:
+                            if len(i['virtualTables'])>0:
+                                v_tables_settings = ''
+                                for j in i['virtualTables']:
+                                    v_tables_settings += j['id']+':\n'
+                                    for setting in settings_list:
+                                        if setting in j['config']:
+                                            value = j['config'][setting]
+                                            if len(value)>0:
+                                                v_tables_settings += f'{setting}={value}'+'\n'
+                                new_row['virtual_tables_settings'] = v_tables_settings.strip().strip(':')
                         
                     df_assigned = pd.concat([df_assigned, pd.DataFrame([new_row])], ignore_index=True)
 
@@ -101,7 +105,7 @@ def main():
     st.title("Tables Review")
     st.sidebar.subheader('Configuration', divider=True)
     file = st.sidebar.file_uploader("Upload The List of Casinos", type=['csv'])
-    tables_list_input = st.sidebar.text_input("Tables List (comma-separated)", "RaceTrack0000001, FreeBet000000001")
+    tables_list_input = st.sidebar.text_input("Tables List (comma-separated)", "")
     tables_list = [item.strip() for item in tables_list_input.split(',')] if tables_list_input else []
     evosession = st.sidebar.text_input("EVOSESSIONID", "")
     st.sidebar.subheader('Table Settings', divider=True)
