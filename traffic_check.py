@@ -5,7 +5,7 @@ from requests.auth import HTTPBasicAuth
 import json
 from io import StringIO
 
-def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list):
+def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list, review_v_tables, review_traffic):
     df_casinos = pd.read_csv(file)
 
     bo_headers =  {
@@ -60,37 +60,37 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list)
 
                             
                     
+    if review_traffic:
+        df_assigned['rounds_count'] = ''
+        df_assigned['notes'] = ''
 
-    df_assigned['rounds_count'] = ''
-    df_assigned['notes'] = ''
-    
-    status.update(label="Analyzing Tables Traffic", state="running")
+        status.update(label="Analyzing Tables Traffic", state="running")
 
-    for casino_id in casinos:
-        status.update(label=f"Analyzing Tables Traffic for {casino_id}", state="running")
-        token = df_casinos.loc[df_casinos['casino_id'] == casino_id,'gameHistoryApi_token'].item()
-        basic_auth = HTTPBasicAuth(casino_id, token)
-        casino_tables = df_assigned[df_assigned['casino_id'] == casino_id]['table_id'].tolist()
+        for casino_id in casinos:
+            status.update(label=f"Analyzing Tables Traffic for {casino_id}", state="running")
+            token = df_casinos.loc[df_casinos['casino_id'] == casino_id,'gameHistoryApi_token'].item()
+            basic_auth = HTTPBasicAuth(casino_id, token)
+            casino_tables = df_assigned[df_assigned['casino_id'] == casino_id]['table_id'].tolist()
 
-        for table_id in casino_tables:
-            game_type = df_assigned[df_assigned['table_id'] == table_id]['game_type'].iloc[0]
-            url = f'https://alive.evo-games.com/api/gamehistory/v1/casino/daily-report?startDate={startDate}&endDate={endDate}&gameType={game_type}'
-            response = requests.get(url, auth=basic_auth, timeout=10)
+            for table_id in casino_tables:
+                game_type = df_assigned[df_assigned['table_id'] == table_id]['game_type'].iloc[0]
+                url = f'https://alive.evo-games.com/api/gamehistory/v1/casino/daily-report?startDate={startDate}&endDate={endDate}&gameType={game_type}'
+                response = requests.get(url, auth=basic_auth, timeout=10)
 
-            if response.status_code != 200:
-                df_assigned.loc[(df_assigned['casino_id'] == casino_id) & (df_assigned['table_id'] == table_id), 'notes'] = f"Error: Failed to fetch data. Status code: {response.status_code}, Response content: {response.content}"
-            else:
-                rounds_count = 0
-                data = response.json()
-                if 'data' in data:
-                    for item in data['data']:
-                        table_data = item.get("table", {})
-                        table_reported = table_data.get("id", "N/A")
-                        if table_reported == table_id:
-                            rounds_count += item.get("roundCount", "N/A")
+                if response.status_code != 200:
+                    df_assigned.loc[(df_assigned['casino_id'] == casino_id) & (df_assigned['table_id'] == table_id), 'notes'] = f"Error: Failed to fetch data. Status code: {response.status_code}, Response content: {response.content}"
                 else:
-                    df_assigned.loc[(df_assigned['casino_id'] == casino_id) & (df_assigned['table_id'] == table_id), 'notes'] = "The key 'data' is not present in the main dictionary."
-                df_assigned.loc[(df_assigned['casino_id'] == casino_id) & (df_assigned['table_id'] == table_id), 'rounds_count'] = rounds_count
+                    rounds_count = 0
+                    data = response.json()
+                    if 'data' in data:
+                        for item in data['data']:
+                            table_data = item.get("table", {})
+                            table_reported = table_data.get("id", "N/A")
+                            if table_reported == table_id:
+                                rounds_count += item.get("roundCount", "N/A")
+                    else:
+                        df_assigned.loc[(df_assigned['casino_id'] == casino_id) & (df_assigned['table_id'] == table_id), 'notes'] = "The key 'data' is not present in the main dictionary."
+                    df_assigned.loc[(df_assigned['casino_id'] == casino_id) & (df_assigned['table_id'] == table_id), 'rounds_count'] = rounds_count
     status.update(label="Analysis Done", state="complete")
     return df_assigned
 
@@ -98,22 +98,22 @@ def main():
     """
     Main function to run the Streamlit app.
     """
-    st.title("Traffic Review")
-    st.sidebar.header("Configuration")
-
-    # Input Parameters
-    file = st.sidebar.file_uploader("Upload Tthe List of Casinos", type=['csv'])
+    st.title("Tables Review")
+    st.sidebar.subheader('Configuration', divider=True)
+    file = st.sidebar.file_uploader("Upload The List of Casinos", type=['csv'])
     tables_list_input = st.sidebar.text_input("Tables List (comma-separated)", "RaceTrack0000001, FreeBet000000001")
     tables_list = [item.strip() for item in tables_list_input.split(',')] if tables_list_input else []
     evosession = st.sidebar.text_input("EVOSESSIONID", "")
-    st.sidebar.divider()
+    st.sidebar.subheader('Table Settings', divider=True)
+    settings_list_input = st.sidebar.text_input("Settings List (comma-separated)", "display, siteAssignedTable, siteBlockedTable")
+    settings_list = [item.strip() for item in settings_list_input.split(',')] if settings_list_input else []
+    review_v_tables = st.sidebar.checkbox("Review Virtual Tables Settings", value=False)
+    st.sidebar.subheader('Table Traffic', divider=True)
+    review_traffic = st.sidebar.checkbox("Review Table Traffic", value=False)
     start_date = st.sidebar.date_input("Start Date", value="today")
     end_date = st.sidebar.date_input("End Date", value="today")
     st.sidebar.write("Maximum reporting period is 30 days")
-    st.sidebar.divider()
-    settings_list_input = st.sidebar.text_input("Settings List (comma-separated)", "display, siteAssignedTable, siteBlockedTable")
-    settings_list = [item.strip() for item in settings_list_input.split(',')] if settings_list_input else []
-    review_v_tables = st.sidebar.checkbox("Review Virtual Tables Setting", value=False)
+
 
     start_date = start_date.strftime('%Y-%m-%d')
     end_date = end_date.strftime('%Y-%m-%d')
@@ -121,7 +121,7 @@ def main():
     if st.sidebar.button("Generate Report"):
         if file is not None:
             try:
-                df = fetch_data(file, tables_list, evosession, start_date, end_date, settings_list)
+                df = fetch_data(file, tables_list, evosession, start_date, end_date, settings_list, review_v_tables, review_traffic)
                 st.dataframe(df)
                 
 
