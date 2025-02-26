@@ -4,8 +4,12 @@ import requests
 from requests.auth import HTTPBasicAuth
 import json
 from io import StringIO
+import datetime
 
-def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list, review_v_tables, review_traffic):
+st.set_page_config(page_title="Tables Review", page_icon=':sparkles:', layout="wide", initial_sidebar_state="expanded")
+
+
+def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list, review_v_tables,  review_traffic):
     df_casinos = pd.read_csv(file)
 
     bo_headers =  {
@@ -44,20 +48,21 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list,
 
                     new_row = {'casino_id': casino_id, 'table_id': table_id, 'game_type': i['gameType'], 'number_of_virtual_tables': len(i['virtualTables'])}
                     
-                    for setting in settings_list:
-                        if setting in data_table['config']:
-                            new_row[setting] = data_table['config'][setting]
-                    if review_v_tables:
-                        if len(i['virtualTables'])>0:
-                            v_tables_settings = ''
-                            for j in i['virtualTables']:
-                                v_tables_settings += j['id']+':\n'
-                                for setting in settings_list:
-                                    if setting in j['config']:
-                                        value = j['config'][setting]
-                                        if len(value)>0:
-                                            v_tables_settings += f'{setting}={value}'+'\n'
-                            new_row['virtual_tables_settings'] = v_tables_settings.strip().strip(':')
+                    if len(settings_list)>0:
+                        for setting in settings_list:
+                            if setting in data_table['config']:
+                                new_row[setting] = data_table['config'][setting]
+                        if review_v_tables:
+                            if len(i['virtualTables'])>0:
+                                v_tables_settings = ''
+                                for j in i['virtualTables']:
+                                    v_tables_settings += j['id']+':\n'
+                                    for setting in settings_list:
+                                        if setting in j['config']:
+                                            value = j['config'][setting]
+                                            if len(value)>0:
+                                                v_tables_settings += f'{setting}={value}'+'\n'
+                                new_row['virtual_tables_settings'] = v_tables_settings.strip().strip(':')
                         
                     df_assigned = pd.concat([df_assigned, pd.DataFrame([new_row])], ignore_index=True)
 
@@ -101,6 +106,10 @@ def main():
     """
     Main function to run the Streamlit app.
     """
+    
+    if "date" not in st.session_state:
+        review_traffic = False
+    
     st.title("Tables Review")
     st.sidebar.subheader('Configuration', divider=True)
     file = st.sidebar.file_uploader("Upload The List of Casinos", type=['csv'])
@@ -110,21 +119,26 @@ def main():
     st.sidebar.subheader('Table Settings', divider=True)
     settings_list_input = st.sidebar.text_input("Settings List (comma-separated)", "display, siteAssignedTable, siteBlockedTable")
     settings_list = [item.strip() for item in settings_list_input.split(',')] if settings_list_input else []
-    review_v_tables = st.sidebar.checkbox("Review Virtual Tables Settings", value=False)
+    review_v_tables = st.sidebar.checkbox("Add Virtual Tables Details", value=False)
     st.sidebar.subheader('Table Traffic', divider=True)
     review_traffic = st.sidebar.checkbox("Review Table Traffic", value=False)
-    start_date = st.sidebar.date_input("Start Date", value="today")
-    end_date = st.sidebar.date_input("End Date", value="today")
-    st.sidebar.write("Maximum reporting period is 30 days")
+    today = datetime.datetime.now()
+    yesterday = today - datetime.timedelta(days=1)
+    st.sidebar.date_input("Reporting period", value=[yesterday, today], disabled=not(review_traffic), key="date")
+    
+   
+    [start_date, end_date] = st.session_state.date
+    if end_date-start_date > datetime.timedelta(days=30):
+        st.sidebar.warning("Maximum reporting period is 30 days")
+        
 
-
-    start_date = start_date.strftime('%Y-%m-%d')
-    end_date = end_date.strftime('%Y-%m-%d')
+    #start_date = start_date.strftime('%Y-%m-%d')
+    #end_date = end_date.strftime('%Y-%m-%d')
 
     if st.sidebar.button("Generate Report"):
         if file is not None:
             try:
-                df = fetch_data(file, tables_list, evosession, start_date, end_date, settings_list, review_v_tables, review_traffic)
+                df = fetch_data(file, tables_list, evosession, start_date, end_date, settings_list, review_v_tables,  review_traffic)
                 st.dataframe(df)
                 
 
