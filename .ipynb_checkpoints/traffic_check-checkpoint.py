@@ -74,9 +74,12 @@ def fetch_data(file, tables_list, evosession, startDate, endDate, settings_list,
 
         status.update(label="Analyzing Tables Traffic", state="running")
 
-        for casino_id in casinos:
+        #for casino_id in casinos:
+        for index, row in df_casinos.iterrows():
+            casino_id = row['casino_id']
+            token = row['gameHistoryApi_token']
             status.update(label=f"Analyzing Tables Traffic for {casino_id}", state="running")
-            token = df_casinos.loc[df_casinos['casino_id'] == casino_id,'gameHistoryApi_token'].item()
+            #token = df_casinos.loc[df_casinos['casino_id'] == casino_id,'gameHistoryApi_token'].item()
             basic_auth = HTTPBasicAuth(casino_id, token)
             casino_tables = df_assigned[df_assigned['casino_id'] == casino_id]['table_id'].tolist()
 
